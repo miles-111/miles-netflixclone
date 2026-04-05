@@ -1,40 +1,97 @@
 import React, { useState, useEffect } from 'react'
 import axios from './axios';
 import './Row.css';
+import YouTube from 'react-youtube';
+import requests from './requests';
 
 const base_url = "https://image.tmdb.org/t/p/original/";
 
-function Row({ title, fetchUrl }) {
-    const [movies, setMovies] = useState([]);
+const fetchYouTubeTrailer = async (movieTitle) => {
+  const response = await axios.get(
+    "https://www.googleapis.com/youtube/v3/search",
+    {
+      params: {
+        part: "snippet",
+        q: `${movieTitle} official trailer`,
+        key: process.env.REACT_APP_YOUTUBE_API_KEY,
+        maxResults: 5,
+        type: "video",
+      },
+    }
+  );
+  return response.data.items;
+};
 
-    // a snipper of code which runs based on a specific condition
-    useEffect(() => {
-        // if[], run once when the row loads,
-        async function fetchData() {
-            const request = await axios.get(fetchUrl);
-            
-            setMovies(request.data.results);
-            return request;
+function Row({ title, fetchUrl, isLargeRow }) {
+  const [movies, setMovies] = useState([]);
+  const [trailerUrl, setTrailerUrl] = useState("");
+
+  const handleClick = async (movie) => {
+    console.log("CLICKED:", movie);
+    try {
+      const request = await axios.get(
+        requests.fetchMovieVideos(movie.id)
+      );
+
+      const videos = request.data.results;
+
+      const trailer = videos.find(
+        (vid) => vid.type === "Trailer" && vid.site === "YouTube"
+      );
+
+      if (trailer) {
+        setTrailerUrl(trailer.key);
+      } else {
+        const ytVideos = await fetchYouTubeTrailer(
+          movie.title || movie.name
+        );
+
+        const best = ytVideos.find((video) => {
+          const title = video.snippet.title.toLowerCase();
+          return title.includes("official") && title.includes("trailer");
+        });
+
+        if (best) {
+          setTrailerUrl(best.id.videoId);
+        } else {
+          setTrailerUrl("");
         }
-        fetchData();
-    }, [fetchUrl]);
+      }
 
-    console.log(movies);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-    return (
+  useEffect(() => {
+    console.log("fetchUrl:", fetchUrl);
+
+    async function fetchData() {
+      const request = await axios.get(fetchUrl);
+      setMovies(request.data.results);
+    }
+    fetchData();
+  }, [fetchUrl]);
+
+  return (
     <div className="row">
-        <h2/>{title}<h2/>
+      <h2>{title}</h2>
 
-        <div className="row__posters">
-            {movies.map(movie => (
-                <img
-                key={movie.id}
-                className="row__poster"
-                src={`${base_url}${movie.poster_path}`} 
-                alt={movie.name} />
-            ))}
-        </div>
-        {/* container -> posters */}
+      <div className="row__posters">
+        {movies.map(movie => (
+          <img
+            key={movie.id}
+            onClick={() => handleClick(movie)}
+            className={`row__poster ${isLargeRow && 'row__posterLarge'}`}
+            src={`${base_url}${
+              isLargeRow ? movie.poster_path : movie.backdrop_path
+            }`}
+            alt={movie.name}
+          />
+        ))}
+      </div>
+
+      {trailerUrl && <YouTube videoId={trailerUrl} />}
     </div>
   )
 }

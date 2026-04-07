@@ -6,28 +6,14 @@ import requests from './requests';
 
 const base_url = "https://image.tmdb.org/t/p/original/";
 
-const fetchYouTubeTrailer = async (movieTitle) => {
-  const response = await axios.get(
-    "https://www.googleapis.com/youtube/v3/search",
-    {
-      params: {
-        part: "snippet",
-        q: `${movieTitle} official trailer`,
-        key: process.env.REACT_APP_YOUTUBE_API_KEY,
-        maxResults: 5,
-        type: "video",
-      },
-    }
-  );
-  return response.data.items;
-};
-
 function Row({ title, fetchUrl, isLargeRow }) {
   const [movies, setMovies] = useState([]);
   const [trailerUrl, setTrailerUrl] = useState("");
 
   const handleClick = async (movie) => {
-    console.log("CLICKED:", movie);
+  if (trailerUrl) {
+    setTrailerUrl("");
+  } else {
     try {
       const request = await axios.get(
         requests.fetchMovieVideos(movie.id)
@@ -42,26 +28,13 @@ function Row({ title, fetchUrl, isLargeRow }) {
       if (trailer) {
         setTrailerUrl(trailer.key);
       } else {
-        const ytVideos = await fetchYouTubeTrailer(
-          movie.title || movie.name
-        );
-
-        const best = ytVideos.find((video) => {
-          const title = video.snippet.title.toLowerCase();
-          return title.includes("official") && title.includes("trailer");
-        });
-
-        if (best) {
-          setTrailerUrl(best.id.videoId);
-        } else {
-          setTrailerUrl("");
-        }
+        setTrailerUrl("");
       }
-
     } catch (error) {
       console.log(error);
     }
-  };
+  }
+};
 
   useEffect(() => {
     console.log("fetchUrl:", fetchUrl);

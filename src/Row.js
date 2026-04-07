@@ -6,29 +6,41 @@ import requests from './requests';
 
 const base_url = "https://image.tmdb.org/t/p/";
 
-function Row({ title, fetchUrl, isLargeRow }) {
+function Row({
+  title,
+  fetchUrl,
+  isLargeRow,
+  trailerUrl,
+  setTrailerUrl,
+  activeRow,
+  setActiveRow
+}) {
   const [movies, setMovies] = useState([]);
-  const [trailerUrl, setTrailerUrl] = useState("");
 
   const handleClick = useCallback(async (movie) => {
-    if (trailerUrl) {
+    if (activeRow === title && trailerUrl) {
       setTrailerUrl("");
+      setActiveRow(null);
       return;
     }
+
+    setActiveRow(title);
 
     try {
       const request = await axios.get(requests.fetchMovieVideos(movie.id));
       const videos = request.data.results;
 
       const trailer = videos.find(
-        (vid) => vid.type === "Trailer" && vid.site === "YouTube"
+        (vid) =>
+          vid.site === "YouTube" &&
+          (vid.type === "Trailer" || vid.type === "Teaser")
       );
 
       setTrailerUrl(trailer ? trailer.key : "");
     } catch (error) {
       console.log(error);
     }
-  }, [trailerUrl]);
+  }, [activeRow, trailerUrl, title, setTrailerUrl, setActiveRow]);
 
   useEffect(() => {
     if (!fetchUrl) return;
@@ -69,7 +81,7 @@ function Row({ title, fetchUrl, isLargeRow }) {
         })}
       </div>
 
-      {trailerUrl && (
+      {trailerUrl && activeRow === title && (
         <YouTube
           videoId={trailerUrl}
           opts={{
